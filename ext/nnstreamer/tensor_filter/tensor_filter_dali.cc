@@ -142,7 +142,7 @@ class dali_subplugin final : public tensor_filter_subplugin
   private:
   bool configured{};
   int _device_id{}; /**< Device id of the gpu to use. */
-  cudaStream_t _stream{}; /**< The cuda stream. */
+  // cudaStream_t _stream{}; /**< The cuda stream. */
 
   static const char *name;
   static const accl_hw hw_list[];
@@ -204,9 +204,9 @@ dali_subplugin::cleanup ()
     return;
   }
 
-  if (_stream) {
-    cudaStreamDestroy (_stream);
-  }
+  // if (_stream) {
+  //   cudaStreamDestroy (_stream);
+  // }
 
   if (_pipeline_handle) {
     daliDeletePipeline (&_pipeline_handle);
@@ -300,7 +300,7 @@ dali_subplugin::loadPipeline ()
       serialized_pipeline_str.size ());
 
   // Create the cuda stream
-  cudaStreamCreate (&_stream);
+  // cudaStreamCreate (&_stream);
 
   configured = true;
 }
@@ -321,7 +321,7 @@ dali_subplugin::invoke (const GstTensorMemory *input, GstTensorMemory *output)
     auto data_ptr = input[_input_index].data;
     auto sample_dim = _nns_input_shape.size ();
     const char *layout_str = nullptr;
-    unsigned int flags{ DALI_ext_force_no_copy };
+    unsigned int flags{ DALI_ext_default };
     ml_logd ("dali_subplugin::invoke; copy data");
     daliSetExternalInput (&_pipeline_handle, _nns_input_name, device_type,
         data_ptr, _nns_input_dali_data_type, _nns_input_shape.data (),
@@ -353,15 +353,21 @@ dali_subplugin::invoke (const GstTensorMemory *input, GstTensorMemory *output)
     g_assert (nns_output_num_elements == dali_output_num_elements);
     g_assert (_nns_output_shape == dali_output_shape);
 
+    // cudaStream_t _stream{}; /**< The cuda stream. */
+    // cudaStreamCreate (&_stream);
+    // if (_stream) {
+    //   cudaStreamDestroy (_stream);
+    // }
+
     ml_logd ("dali_subplugin::invoke; copying output");
     daliOutputCopy (&_pipeline_handle, output[_output_index].data,
-        _output_index, device_type, _stream, flags);
+        _output_index, device_type, 0, flags);
     /* Wait for GPU to copying */
-    auto status = cudaStreamSynchronize (_stream);
-    if (status != cudaSuccess) {
-      ml_loge ("Failed to synchronize the cuda stream");
-      throw std::runtime_error ("Failed to synchronize the cuda stream");
-    }
+    // auto status = cudaStreamSynchronize (_stream);
+    // if (status != cudaSuccess) {
+    //   ml_loge ("Failed to synchronize the cuda stream");
+    //   throw std::runtime_error ("Failed to synchronize the cuda stream");
+    // }
     ml_logd ("dali_subplugin::invoke; copied output");
 
   } catch (const std::exception &exc) {
